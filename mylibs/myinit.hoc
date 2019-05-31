@@ -1,0 +1,29 @@
+//
+// Refer to: Arsiero, M., Luescher, H.-R., Lundstrom, B.N., and Giugliano, M. (2007). The Impact of Input Fluctuations on the Frequency-Current Relationships of Layer 5 Pyramidal Neurons in the Rat Medial Prefrontal Cortex. sumbitted.
+//
+
+
+
+access soma
+
+objref fl                       // Let's introduce a (current-clamp) fluctuating current injection mechanism.
+fl = new Isinunoisy(0.5)           // The mechanism is going to be located in the soma..
+fl.tau = 1                      // ms - autocorrelation time-length of the fluctuating current (e.g. AMPAr, GABAa)
+
+objectvar apc                   // Action Potential Count mechanism : we need to compute mean firing rates..
+soma apc   = new APCount(0.5)   // Counting is triggered by somatic membrane potential.
+apc.thresh = -20.               // mV - spikes times are recorded as the upward crossing at -20 mV
+apc.time   = 10000000.          //
+
+fl.m   = 0.                     //
+fl.s   = 0.                     // 
+apc.n  = 0                      // 
+t      = 0.                     // ms
+tstart = 0.                     // ms
+
+proc pause() { local t
+  t = startsw()
+  while(startsw()-t <$1) {}
+  }
+
+

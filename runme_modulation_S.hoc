@@ -1,0 +1,95 @@
+//
+// Single-compartmental model cell, quick and dirty implementation
+//
+// In the context of the stimulation of a single cell by a sinusoidal noisy current, this script
+// performs the frequency domain analysis.
+// It generates a matrix on a file, containing the gain, the phase and the frequency of stimulation.
+// You can choose to do many trials for a statistical analysis.
+//
+// This script is mean to be run under Linux and is parallelized. 
+//
+// by M. Giugliano and V. Delattre(2008)
+// Brain Mind Institute, EPFL, 
+//
+
+load_file("nrngui.hoc")                   // Loading of the standard GUI controls...
+load_file("mylibs/graphs.hoc")            // Loading some ad-hoc proc for displaying live traces...
+load_file("mylibs/singlecompneuron.hoc")  // Loading the model cell template..
+load_file("mylibs/IsinunoisyS_proc.hoc")  // Loading the procedure for a "sinunoisy" current injection...
+load_file("mylibs/myinit.hoc")            // Loading some ad-hoc proc for file creation and initialization...
+load_file("mylibs/TFparams.hoc")          // Settings for the TF...
+load_file("mylibs/Functions.hoc")         // Loading some had-hoc function: mysin, err...
+load_file("mylibs/FDA_proc.hoc")          // Loading the procedure for the frequency domain analysis...
+load_file("mylibs/SetSeed_proc.hoc")      // Loading the Seeding procedure
+
+//------------------------------------------------------------------------------------------------------
+
+access soma // ACCESSING THE CELL THAT IS GOING TO RECEIVE THE STIMULATION
+
+////////////////////////SIMULATION CONTROL////////////////////////////////////////////////////////////////
+
+Nfreq   = 51                      // Number of frequency to be tested
+Ntrials = 15                      // Number of repetitions
+Ntot    = Ntrials * Nfreq         // Number of tasks
+
+Vrest              = -67          // [mV]
+Amp                = 0.2          // [pA]Sinusoidal input amplitude
+tstart             = 0            // [ms] 
+tau                = 2.5          // [ms] 
+freqmax            = 1.16^Nfreq   // [Hz]Sinusoidal input maximum frequency
+freqmin            = 1.16         // [Hz]Sinusoidal input minimum frequency 
+
+tstop              = Tdelay + T1 + T    //Total simulation duration [ms]
+t                  = tstart
+
+vth_wb(0.5)     = 0.
+
+finitialize(Vrest) 
+
+//////////////////////////OBJECTS DECLARATION/////////////////////////////////////////////////////////////
+
+objref outspikes, indepvar, myhist, fitsine, vec
+
+outspikes = new Vector()
+
+objref result_file1, result_file2
+strdef aptime, linear
+
+result_file1 = new File("result/Sresult_s=0.55_m=-0.25.x")
+result_file1.wopen()
+
+/////////////////////////// Experimentation //////////////////////////////////////////////////////////////
+
+my_k  = 0
+my_i  = 0
+freq  = freqmin
+mu    = -0.25 
+sigma = 0.55 
+
+ccc = 1 // just a counter
+
+for(my_k=0; my_k<= 1; my_k = my_k +1){          // This loops sweeps accross sigmas
+	for(my_i=0; my_i<= Ntot-1; my_i = my_i+ 1){ // This loops sweeps accross the frequencies
+		
+			SetSeed()                           // We want every trace to differ from the others
+			remainder = my_i % Nfreq            // We want Ntrials repetitions of each frequency
+			freq = freqmin ^ (remainder + 1)         
+		
+			print ccc ,"of ", 2 * Ntot, "simulations completed "
+			gain = 0
+			phase = 0       
+			FrequencyDomainAnalysis(freq)
+			
+			result_file1.aopen()                 // We append the file
+			result_file1.printf("%d %d %f %f %f %f\n",my_k,my_i,freq,gain,phase,R0)
+
+            ccc = ccc + 1
+	}
+	sigma = sigma + 0.3
+}
+result_file1.close()
+
+printf("The data points of the frequency domain analysis are now available for further analysis and plot!\n")
+
+
+

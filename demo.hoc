@@ -1,0 +1,209 @@
+//
+// DEMO
+// by M. Giugliano and V. Delattre(2008)
+// Brain Mind Institute, EPFL
+//
+
+
+load_file("nrngui.hoc")                   // Loading of the standard GUI controls...
+load_file("mylibs/graphs.hoc")            // Loading some ad-hoc proc for displaying live traces...
+load_file("mylibs/Functions.hoc")         // Loading some had-hoc function: mysin, err...
+
+//------------------------------------------------------------------------------------------------------
+
+
+print "2008 - Michele Giugliano & Vincent Delattre"
+print "Brain Mind Institute, EPFL of Lausanne"
+print "Demonstrating: 1) noisy stimulation, modulated in time"
+print "               2) instantaneous firing rate, estimate and quantitative fit"
+print ""
+
+
+freq   = 0.3			// Oscillation frequency of the input sinusoid
+period = 1./freq		// By definition, the period of the oscillation 
+T      = 6000.			//[ms], overall duration of the simulation (i.e. should be much larger than (1000*period))
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+print "Let's first create a single-compartmental, conductance-based model neuron.."
+create soma          // This creates a single-compartmental neuron..
+soma {             
+ L     = 65          // [um] length of a cilindrical cable
+ diam  = 65          // [um] diameter of a cilindrical cable
+ nseg  = 1           // number of segments - see the documentation
+
+ insert pas          // inserts passive mechanisms (i.e. leak currents, voltage-indep.)
+ g_pas = 1e-4
+ e_pas = -67.        // [mV]      - Leak currents, reversal potential
+ cm    = 1.          // [uF/cm^2] - specific membrane capacitance
+ Ra    = 35.4        // [ohm cm]  - axial/cytosolic resistivity - useless in a 1-compartmental model
+
+ insert wb			 // inserts active mechanisms (Na, K currents, voltage-dep.)
+ gnabar  = .007  //
+ gkbar   = .009  //
+} // end soma
+print "done!"
+print ""
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+print "Let's now create and setup a current-clamp stimulation.."
+objref fl
+fl          = new Isinunoisy(0.5)     // Sinusoidal + Noisy, current-clamp stimulation (modulation on the *mean*); see also the mechanism Isinunoisy2 (modulation on the *standard deviation*)
+fl.m        = 0.3					  // [nA], DC offset of the overall current 
+fl.s        = 0.2					  // [nA], square root of the steady-state variance of the (noisy) stimulus component
+fl.tau      = 2.5					  // [ms], steady-state correlation time-length of the (noisy) stimulus component
+fl.amp      = 0.25					  // [nA], amplitude of the (sinusoidal) stimulus component
+fl.freq     = freq					  // [Hz], steady-state correlation time-length of the (noisy) stimulus component
+print "done!"
+print ""
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+print "Let's define a way to count and log the time of each spike that will be fire.."
+objectvar apc                   // A.P.C. - Action Potential Count mechanism.
+soma apc   = new APCount(0.5)   // Counting is triggered by somatic membrane potential.
+apc.thresh = -20.               // [mV], spikes times are recorded as the upward crossing of this threshold
+apc.time   = 10000000.          //
+print "done!"
+print ""
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+print "Time to launch the simulation!"
+
+strdef aptime, linear
+objref gg, outspikes, indepvar, myhist, fitsine, inputsine, vec
+
+Vrest              = -67          // [mV]
+tstart             = 0            // [ms] 
+t                  = tstart
+tstop              = T            // [ms] Total simulation duration [ms]
+dt                 = 0.025       // ms - integration time step
+
+outspikes = new Vector()
+apc.record(outspikes)   // This statement attaches to the spike counter 'myapc' a vector to collect spike times..
+
+//
+//----------- GRAPH DISPLAYING ETC. ETC. ----------------------------------------------------------------------------
+//
+objectvar save_window_, rvp_
+objectvar scene_vector_[4]
+objectvar ocbox_, ocbox_list_, scene_, scene_list_
+objectvar g0, g1
+
+finitialize(Vrest)
+
+proc graph_and_run() {
+  {ocbox_list_ = new List()  scene_list_ = new List()}
+  {pwman_place(0,0,0)}
+  {
+  save_window_ = new Graph(0)
+  save_window_.size(0,tstop,-80,40)
+  scene_vector_[2] = save_window_
+  {save_window_.view(0, -80, tstop, 120, 707, 22, 625, 395)}
+  graphList[0].append(save_window_)
+  save_window_.save_name("graphList[0].")
+  save_window_.addexpr("v(.5)", 1, 1, 0.8, 0.9, 2)
+  g0=save_window_
+  }
+  {
+  save_window_ = new Graph(0)
+  save_window_.size(0,tstop,-0.8,1.2)
+  scene_vector_[3] = save_window_
+  {save_window_.view(0, 0, tstop, 1, 708, 445, 626, 394)}
+  graphList[2].append(save_window_)
+  save_window_.save_name("graphList[2].")
+  save_window_.addvar("fl.i", 1, 1, 0.8, 0.9, 2)
+  g1=save_window_
+  }
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+
+
+  finitialize(Vrest)
+  run()
+  N      = apc.n          // N spikes have been counted.
+  R0     = 1000 * N / T   // [Hz], Mean Firing rate
+  print "done!"
+  print ""
+
+//
+//------------------------------------------------------------------------------------------------------------------------
+//
+
+  i = 0
+  while (i < N) {                               // I go through each spike time, one by one..
+          spk = outspikes.x[i] / 1000
+          tmp = int(spk * freq)                 // tmp now contains the integer part of the division spk /period..
+          outspikes.x[i] = spk - tmp / freq     // Then this makes it as the reminder of the division spk / period (by definition)..
+          i = i + 1                             // Next spike incrementing the current index 'I'...
+  } // end while()
+
+
+////////////////////////////BUILDING HISTOGRAM///////////////////////////////////////////////////////////////////
+
+  myhist = new Vector()                     // contains the histogram
+  R0 = 1000 * N / T                         // This is the mean firing rate [spikes/s]   
+  Ncycles = 0.001 * freq * T                // This will be used for the normalization
+  binW = 1 / freq * 1 / 33                  // Bin width
+  binL = 0                                  // Low born of the histogram
+
+  myhist = myhist.hist(outspikes,binL,33,binW)                  // We want to histogram into an estimate of the instantaneous firing rate, so we need to make a normalization..
+  myhist.div(Ncycles * binW)                                    // 'div' is a fast way to divide each member of the vector by the same normalization factor: Ncycles * width.
+  Mbins = myhist.size()                                         // Number of bins
+
+  // Now elements are measured in [Hz]..
+
+  indepvar = new Vector()                                       // Let's now create an index vector (our x-axis) with appropriately
+  indepvar.indgen(binW * .5, 1 / freq - binW * 0.5, binW)       // spaced points..
+
+///////////////////////////////////FITTING A FUNCTION////////////////////////////////////////////////////////////
+  inputsine = new Vector(Mbins)                                                // The input sinusoid
+  fitsine = new Vector(Mbins)                                                  // The best fitted sinusoid
+  vec     = new Vector(3)                                                      // Contains the parameters to be fitted
+  vec.x[0]= (myhist.max()-myhist.min())                                        // The amplitude r1         
+  vec.x[1]= indepvar.x[myhist.max_ind()] * (360. * freq) - 90.                 // The phase ph
+  vec.x[2]= R0                                                                 // The offset
+
+  attr_praxis(0.01, 1000, 0)            // Set the fitting attributes: tolerance...
+  fit_praxis(3,"err",&vec.x[0])         // Do the fitting
+
+            r1 = vec.x[0]
+            ph = vec.x[1]
+            ro = vec.x[2]
+
+  if (r1 < 0) {                         //
+   r1 = -r1                          // You never know what the fitting procedure will choose
+   ph = ph - 180.                    // and you want to refer to 'r1' as a positive number..
+  }
+
+   i = 0
+   while (i < Mbins) {                               // I go through each spike time, one by one..
+        fitsine.x[i] = mysin(i*binW, r1, ph, R0)
+		inputsine.x[i] = mysin(i*binW, r1, 0, R0)
+		i = i + 1                             // Next spike incrementing the current index 'I'...
+   } // end while()
+
+
+  {
+  gg = new Graph(0)
+  gg.size(0,period,0,R0+r1)
+  gg.view(0, 0, period, R0+r1, 1, 82, 700, 555)}
+
+  fitsine.plot(gg, indepvar, 2,1)
+  myhist.plot(gg, indepvar, 1,1)
+  inputsine.plot(gg, indepvar, 3,1)
+
+  print "In black, the instantaneous firing rate [Hz] is indicated (i.e. the PSTH)"
+  print "In red, the best fit sinusoid (mean: ", R0, "[Hz], amplitude: ", r1, "[Hz], phase: ", ph
+  print "In blue the sinusoid subsequently modified by noise to produce the input."
+  g0.exec_menu("View = plot")  // zoom out to show everything within the graphs with these commands
+  g1.exec_menu("View = plot")
+  gg.exec_menu("View = plot")
+}
+
+xpanel("Launch panel")
+  xbutton("Click here to run","graph_and_run()")
+xpanel()

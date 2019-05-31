@@ -1,0 +1,30 @@
+//
+// InjectSinusoid()
+//
+// inusoidal, noisy currents injection procedure with a modulation on M
+// This defines a user-function InjectSinuNoisy(), taking 5 input parameters..
+// 
+// M. Giugliano & V. Delattre, Brain Mind Institute, EPFL, Feb 2008
+//
+
+objref fl
+
+proc InjectSinuNoisy() {
+
+m           = $1        // DC offset of the overall current
+s           = $2        // square root of the steady-state variance of the (noisy) stimulus component
+tau         = $3        // steady-state correlation time-length of the (noisy) stimulus component
+amp         = $4        // amplitude of the (sinusoidal) stimulus component
+freq        = $5        // steady-state correlation time-length of the (noisy) stimulus component
+
+fl          = new Isinunoisy(0.5)     // Sinusoidal + Noisy current-clamp stimulation
+fl.m        = m
+fl.s        = s
+fl.tau      = tau
+fl.amp      = amp
+fl.freq     = freq
+
+} // end InjectSinuNoisy()
+
+
+

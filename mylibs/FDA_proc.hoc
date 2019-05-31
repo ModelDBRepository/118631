@@ -1,0 +1,116 @@
+//
+// FrequencyDomainAnalysis()
+//
+// Freqency Domain Analysis
+// This defines a user-function FrequencyDomainAnalysis(), taking 1 input parameter...
+//
+// V. Delattre, Brain Mind Institute, EPFL, Nov 2007
+//
+
+objref outspikes, indepvar, myhist, fitsine, vec
+objref pnm1
+
+proc FrequencyDomainAnalysis() {
+
+    freq           = $1        // 
+
+    //print "ID= ", pnm1.myid, "Loop Number: ", Kfreq, " / ", Number_Of_Loops, ",  Frequence = ", freq
+
+    if(freq > 20) {
+    T = T2}
+    if(freq > 180) {
+    T = T3}
+
+    fl.m   = 0.           // During the first Tdelay [ms] - no stimulation takes place.
+    fl.s   = 0.           // During the first Tdelay [ms] - no stimulation takes place.
+    t      = 0.           // ms - The current simulation time is set to 0.
+    tstart = 0.           // ms
+    tstop  = Tdelay       // ms
+    N      = 0            // Number of spike
+    R0     = 0.           // Mean Firing rate
+    finitialize(Vrest)
+
+    InjectSinuNoisy(mu, sigma, tau, Amp, freq) // Sinusoidal Noisy current injection (Point Process) - utility procedure
+    // Reminder
+    //InjectSinuNoisy(m,s,tau,amp,freq)
+    //
+    //mu          = $1      // nA, DC offset of the overall current
+    //sigma       = $2      // nA, square root of the steady-state variance of the (noisy) stimulus component
+    //tau         = $3      // ms, steady-state correlation time-length of the (noisy) stimulus component
+    //amp         = $4      // nA, amplitude of the (sinusoidal) stimulus component
+    //freq        = $5      // Hz, steady-state correlation time-length of the (noisy) stimulus component
+    run()
+
+    fl.m   = mu             //
+    fl.s   = sigma          //
+    tstop  = t + T1         // ms - We advance the simulation of T1, while stimulating..
+    continuerun(tstop)
+
+    apc.n  = 0              // We discard the count of the spikes emitted during the previous interval..
+    tstop  = t + T          // ms - We advance the simulation of T, during which we count the spikes..
+    apc.record(outspikes)   // This statement attaches to the spike counter 'myapc' a vector to collect spike times..
+    continuerun(tstop)
+    N      = apc.n          // N spikes have been counted.
+        
+    i = 0
+    while (i < N) {                                        // I go through each spike time, one by one..
+        spk = outspikes.x[i] / 1000
+        tmp = int(spk * freq)                 // tmp now contains the integer part of the division spk /period..
+        outspikes.x[i] = spk - tmp / freq     // Then this makes it as the reminder of the division spk / period (by definition)..
+        i = i + 1                             // Next spike incrementing the current index 'I'...
+
+    } // end while()
+
+    ////////////////////////////BUILDING HISTOGRAM///////////////////////////////////////////////////////////////////
+
+    myhist = new Vector()                     // contains the histogram
+    R0 = 1000 * N / T                         // This is the mean firing rate [spikes/s]   
+    Ncycles = 0.001 * freq * T                // This will be used for the normalization
+    binW = 1 / freq * 1 / 33                  // Bin width
+    binL = 0                                  // Low born of the histogram
+
+    myhist = myhist.hist(outspikes,binL,33,binW)                  // We want to histogram into an estimate of the instantaneous firing rate, so we need to make a normalization..
+    myhist.div(Ncycles * binW)                                    // 'div' is a fast way to divide each member of the vector by the same normalization factor: Ncycles * width.
+    Mbins = myhist.size()                                         // Number of bins
+
+    // Now elements are measured in [Hz]..
+
+    indepvar = new Vector()                                       // Let's now create an index vector (our x-axis) with appropriately
+    indepvar.indgen(binW * .5, 1 / freq - binW * 0.5, binW)       // spaced points..
+
+    ///////////////////////////////////FITTING A FUNCTION////////////////////////////////////////////////////////////
+
+            fitsine = new Vector(Mbins)                                                  // The best fitted sinusoid
+            vec     = new Vector(3)                                                      // Contains the parameters to be fitted
+            vec.x[0]= (myhist.max()-myhist.min())                                        // The amplitude r1         
+            vec.x[1]= indepvar.x[myhist.max_ind()] * (360. * freq) - 90.                 // The phase ph
+            vec.x[2]= R0                                                                 // The offset
+
+            attr_praxis(0.01, 1000, 0)            // Set the fitting attributes: tolerance...
+            fit_praxis(3,"err",&vec.x[0])         // Do the fitting
+
+            r1 = vec.x[0]
+            ph = vec.x[1]
+            ro = vec.x[2]
+
+            if (r1 < 0) {                         //
+                r1 = -r1                          // You never know what the fitting procedure will choose
+                ph = ph - 180.                    // and you want to refer to 'r1' as a positive number..
+            }
+
+            /*
+            if (ph < 0) {                         // We want 0 < ph < 360
+                while(ph < 0) {
+                    ph = ph + 360
+                }
+            }else {
+                while(ph > 360) {
+                    ph = ph - 360
+                }
+            }
+            */
+            
+            gain = r1 // Amp  // Contains the sum of all the r1 / Amp found at this frequency
+            phase = ph
+  
+} // end FrequencyDomainAnalysis()

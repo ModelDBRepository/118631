@@ -1,0 +1,24 @@
+objref foo, r, file1
+file1 = new File()
+
+proc SetSeed() {local index
+
+    file1.ropen("Seed.x")   //open file1 for reading
+    file1.vread(&Seed)
+       
+    r = new Random()
+    
+    index = r.MCellRan4(Seed)
+    r.uniform(0, 2)
+    
+    foo = new NetStim()
+    foo.seed(index)
+    
+    Seed = Seed + 1
+    
+    file1.wopen()
+    file1.vwrite(&Seed)
+    file1.close()
+        
+} // end SetSeed()
+

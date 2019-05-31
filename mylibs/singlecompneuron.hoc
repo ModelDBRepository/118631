@@ -1,0 +1,21 @@
+create soma                 // This creates a single-compartmental neuron..
+
+// ---> SOMA <--- 
+soma {             
+ L     = 65          // [um] length of a cilindrical cable
+ diam  = 65          // [um] diameter of a cilindrical cable
+ nseg  = 1           // number of segments - see the documentation
+
+
+ insert pas          // inserts passive mechanisms (means leak currents, voltage-indep.)
+ g_pas = 1e-4
+ e_pas = -67.        // [mV]      - Leak currents, reversal potential
+ cm    = 1.          // [uF/cm^2] - specific membrane capacitance
+ Ra    = 35.4        // [ohm cm]  - axial/cytosolic resistivity - useless in a single-compartmental model
+
+insert wb
+gnabar  = .007  //
+gkbar   = .009  //
+
+} // end soma
+

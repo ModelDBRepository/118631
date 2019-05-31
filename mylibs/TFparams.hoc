@@ -1,0 +1,17 @@
+//
+// Parameters of the simulated experiments, where a fluctuating current is injected into a HH neuron
+// with appropriate values for mean and variance of such current. These values are then swept within some range.
+//
+// Refer to: Arsiero, M., Luescher, H.-R., Lundstrom, B.N., and Giugliano, M. (2007). The Impact of Input Fluctuations on the Frequency-Current Relationships of Layer 5 Pyramidal Neurons in the Rat Medial Prefrontal Cortex. sumbitted.
+//
+
+  Tdelay = 1000.0        // Wait for the voltage & state vars to relax at time t = 0
+  T1     = 100.0         // The stimulation last (T1 + T), but during T1 no spike is counted
+  T      = 40000        // so that the mean firing rate is computed at the steady-state.
+  T2     = 120000
+  T3     = 360000
+  dt     = 0.025       // ms - integration time step
+
+  
+  
+  

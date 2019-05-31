@@ -1,0 +1,32 @@
+//
+// This simple script contains 2 functions that are used in the FreqAnalysis_porc.hoc
+// They can be called anytime: mysin(), err() 
+// V. Delattre(2007)
+// Brain Mind Institute, EPFL, 
+//
+
+/////////////////////////////////////////////////////
+
+// A generic sinusoid is defined and parametrized..
+// It accepts 4 input arguments ($1, ..$4)..
+// $1 is the time (axis), $2 is the amplitude, $3 is the phase, $4 is the offset
+
+func mysin() {                                                    
+  return $2 * sin(2 * PI * (freq * $1 - $3/360.)) + $4           
+}                                                                 
+
+/////////////////////////////////////////////////////
+
+//Computes the error function of the fitting
+
+objref myhist, indepvar
+
+func err() {                                                      
+a = 0
+for(i = 0; i < myhist.size(); i=i+1 ){ 
+    y = (myhist.x[i] - mysin(indepvar.x[i], $&2[0], $&2[1], $&2[2]))
+    a = a + y * y
+}
+a = sqrt(a) 
+return a
+} 
