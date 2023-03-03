@@ -76,7 +76,7 @@ INDEPENDENT {t FROM 0 TO 1 WITH 1 (ms)}
 
 NEURON {
     POINT_PROCESS Isinunoisy2
-    RANGE amp, i, freq, m, s, tau, x, new_seed
+    RANGE amp, i, freq, m, s, tau, x
     ELECTRODE_CURRENT i
 }
 
