@@ -38,6 +38,4 @@ Changelog
 =========
 2023-02-28: Do not declare functions and variables with the same name. This is required by https://github.com/neuronsimulator/nrn/pull/1992
 
----
-
 2025-06-02: Converted README to Markdown.
